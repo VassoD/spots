@@ -6,6 +6,7 @@ import type { Place, ProcessResult } from "@/lib/types";
 
 interface PlacesPanelProps {
   result: ProcessResult;
+  restored: boolean;
   places: Place[];
   search: string;
   setSearch: (v: string) => void;
@@ -15,9 +16,12 @@ interface PlacesPanelProps {
   setActiveCountry: (c: string) => void;
   activeCity: string;
   setActiveCity: (c: string) => void;
+  visitFilter: "all" | "visited" | "wishlist";
+  setVisitFilter: (v: "all" | "visited" | "wishlist") => void;
   selectedId: string | null;
   onSelect: (id: string) => void;
   onReset: () => void;
+  onAddMore: () => void;
 }
 
 function priceLabel(level: string | null): string {
@@ -31,9 +35,9 @@ function priceLabel(level: string | null): string {
 }
 
 export function PlacesPanel(props: PlacesPanelProps): React.ReactElement {
-  const { result, places, search, setSearch, activeCategories, toggleCategory } = props;
+  const { result, restored, places, search, setSearch, activeCategories, toggleCategory } = props;
   const { activeCountry, setActiveCountry, activeCity, setActiveCity } = props;
-  const { selectedId, onSelect, onReset } = props;
+  const { visitFilter, setVisitFilter, selectedId, onSelect, onReset, onAddMore } = props;
 
   const categories = useMemo(
     () =>
@@ -83,19 +87,37 @@ export function PlacesPanel(props: PlacesPanelProps): React.ReactElement {
       <header className="border-b border-[var(--line)] px-6 pb-4 pt-6">
         <div className="flex items-baseline justify-between">
           <h1 className="font-display text-3xl tracking-tight text-[var(--ink)]">Spots</h1>
-          <button
-            onClick={onReset}
-            className="font-mono text-[0.65rem] uppercase tracking-widest text-[var(--ink-faint)] underline-offset-4 hover:text-[var(--accent)] hover:underline"
-          >
-            new upload
-          </button>
+          <div className="flex items-baseline gap-3">
+            <button
+              onClick={onAddMore}
+              className="font-mono text-[0.65rem] uppercase tracking-widest text-[var(--accent)] underline-offset-4 hover:underline"
+            >
+              + add accounts
+            </button>
+            <button
+              onClick={onReset}
+              className="font-mono text-[0.65rem] uppercase tracking-widest text-[var(--ink-faint)] underline-offset-4 hover:text-[var(--accent)] hover:underline"
+            >
+              start over
+            </button>
+          </div>
         </div>
         <p className="mt-2 font-mono text-xs text-[var(--ink-soft)]">
           <span className="text-[var(--ink)]">{result.stats.total}</span> places ·{" "}
           <span className="text-[var(--ink)]">{result.stats.cities}</span> cities ·{" "}
           <span className="text-[var(--ink)]">{result.accounts.length}</span> accounts
-          {result.enriched ? " · categorized via Maps" : " · categorized by name"}
+          {result.hasActivity && (
+            <>
+              {" · "}
+              <span className="text-[var(--accent)]">{result.stats.visited}</span> seen
+            </>
+          )}
         </p>
+        {restored && (
+          <p className="mt-1 font-mono text-[0.6rem] uppercase tracking-wider text-[var(--ink-faint)]">
+            restored from this device · start over to re-upload
+          </p>
+        )}
       </header>
 
       <div className="border-b border-[var(--line)] px-6 py-4">
@@ -105,6 +127,24 @@ export function PlacesPanel(props: PlacesPanelProps): React.ReactElement {
           placeholder="Search a place or street…"
           className="w-full border-b border-[var(--line)] bg-transparent pb-2 font-sans text-sm text-[var(--ink)] placeholder:text-[var(--ink-faint)] focus:border-[var(--accent)] focus:outline-none"
         />
+
+        {result.hasActivity && (
+          <div className="mt-4 flex rounded-sm border border-[var(--line)] p-0.5">
+            {(["all", "visited", "wishlist"] as const).map((opt) => (
+              <button
+                key={opt}
+                onClick={() => setVisitFilter(opt)}
+                className="flex-1 rounded-[3px] py-1.5 font-mono text-[0.65rem] uppercase tracking-wider transition-colors"
+                style={{
+                  backgroundColor: visitFilter === opt ? "var(--ink)" : "transparent",
+                  color: visitFilter === opt ? "var(--paper)" : "var(--ink-soft)",
+                }}
+              >
+                {opt === "all" ? "All" : opt === "visited" ? "Been there" : "Wishlist"}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="mt-4 flex flex-wrap gap-1.5">
           {categories.map((c) => {
@@ -207,6 +247,14 @@ export function PlacesPanel(props: PlacesPanelProps): React.ReactElement {
                               </span>
                             )}
                             <span className="hairline mx-1 flex-1 self-center opacity-50" />
+                            {p.visited && (
+                              <span
+                                className="font-mono text-[0.6rem] text-[var(--accent)]"
+                                title={`Seen ${p.seenCount}× in your Maps activity${p.lastSeen ? `, last ${p.lastSeen}` : ""}`}
+                              >
+                                ✓{p.seenCount > 1 ? `${p.seenCount}` : ""}
+                              </span>
+                            )}
                             {p.rating && (
                               <span className="font-mono text-[0.65rem] text-[var(--ink-soft)]">★{p.rating}</span>
                             )}

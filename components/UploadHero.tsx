@@ -6,6 +6,8 @@ interface UploadHeroProps {
   onProcess: (files: File[]) => void;
   loading: boolean;
   error: string | null;
+  addMode?: boolean;
+  onCancel?: () => void;
 }
 
 function collectZips(list: FileList | null): File[] {
@@ -13,7 +15,7 @@ function collectZips(list: FileList | null): File[] {
   return Array.from(list).filter((f) => f.name.toLowerCase().endsWith(".zip"));
 }
 
-export function UploadHero({ onProcess, loading, error }: UploadHeroProps): React.ReactElement {
+export function UploadHero({ onProcess, loading, error, addMode = false, onCancel }: UploadHeroProps): React.ReactElement {
   const [files, setFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -44,17 +46,41 @@ export function UploadHero({ onProcess, loading, error }: UploadHeroProps): Reac
         <div className="mb-8 flex items-baseline gap-3">
           <span className="font-display text-2xl tracking-tight text-[var(--ink)]">Spots</span>
           <span className="eyebrow">all your spots, one map</span>
+          {addMode && onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="ml-auto font-mono text-[0.65rem] uppercase tracking-widest text-[var(--ink-faint)] underline-offset-4 hover:text-[var(--accent)] hover:underline"
+            >
+              back to map
+            </button>
+          )}
         </div>
-        <h1 className="font-display text-[clamp(2.6rem,7vw,5.2rem)] font-light leading-[0.95] tracking-tight text-[var(--ink)]">
-          Every place you ever
-          <br />
-          <span className="italic text-[var(--accent)]">saved</span>, on one map.
-        </h1>
-        <p className="mt-6 max-w-xl text-lg leading-relaxed text-[var(--ink-soft)]">
-          Scattered your favourite cafes, restaurants and sights across a dozen Google
-          accounts? Drop your Takeout exports below. We merge them, drop the duplicates,
-          and sort everything by country, city and category, automatically.
-        </p>
+        {addMode ? (
+          <>
+            <h1 className="font-display text-[clamp(2.4rem,6vw,4.4rem)] font-light leading-[0.95] tracking-tight text-[var(--ink)]">
+              Add <span className="italic text-[var(--accent)]">more</span> accounts.
+            </h1>
+            <p className="mt-6 max-w-xl text-lg leading-relaxed text-[var(--ink-soft)]">
+              Drop in another account&apos;s Takeout export and we&apos;ll merge it into your
+              existing map, deduping anything you&apos;ve already saved. Include that account&apos;s
+              My Activity export too if you want its visits matched.
+            </p>
+          </>
+        ) : (
+          <>
+            <h1 className="font-display text-[clamp(2.6rem,7vw,5.2rem)] font-light leading-[0.95] tracking-tight text-[var(--ink)]">
+              Every place you ever
+              <br />
+              <span className="italic text-[var(--accent)]">saved</span>, on one map.
+            </h1>
+            <p className="mt-6 max-w-xl text-lg leading-relaxed text-[var(--ink-soft)]">
+              Scattered your favourite cafes, restaurants and sights across a dozen Google
+              accounts? Drop your Takeout exports below. We merge them, drop the duplicates,
+              and sort everything by country, city and category, automatically.
+            </p>
+          </>
+        )}
       </div>
 
       <div
@@ -116,7 +142,9 @@ export function UploadHero({ onProcess, loading, error }: UploadHeroProps): Reac
             onClick={() => onProcess(files)}
             className="rounded-sm bg-[var(--ink)] px-7 py-3 font-mono text-sm uppercase tracking-widest text-[var(--paper)] transition-all hover:bg-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-35"
           >
-            {loading ? "Reading your places…" : `Map my spots${files.length ? ` (${files.length})` : ""}`}
+            {loading
+              ? "Reading your places…"
+              : `${addMode ? "Add to my map" : "Map my spots"}${files.length ? ` (${files.length})` : ""}`}
           </button>
           {files.length > 0 && !loading && (
             <button
@@ -130,7 +158,7 @@ export function UploadHero({ onProcess, loading, error }: UploadHeroProps): Reac
         </div>
       </div>
 
-      <Steps />
+      {!addMode && <Steps />}
     </main>
   );
 }
