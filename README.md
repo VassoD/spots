@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Spots
 
-## Getting Started
+All your spots, one map. A web app that turns Google Maps "Saved places" exports into one merged, deduplicated,
+categorized map. Drop in Google Takeout `.zip` files from any number of accounts and the
+app parses each account's saved places, removes duplicates, derives city and Paris
+arrondissement from the address, categorizes every place via the Google Places API, and
+shows the result as a filterable list beside an interactive map.
 
-First, run the development server:
+## Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Create `.env.local` with a Google Maps Platform key (Places API New enabled):
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+GOOGLE_MAPS_API_KEY=your_key_here
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Without a key the app still works, it just falls back to categorizing by place name
+instead of the Places API.
 
-## Learn More
+## Run
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run dev      # http://localhost:3000
+npm run build    # production build
+npm run start    # serve the production build
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## How to get the exports
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+For each Google account: open [takeout.google.com](https://takeout.google.com), deselect
+all, select **Maps (your places)**, export, and download the zip. Name each file like
+`yourname_takeout-….zip` so the account label is readable; otherwise it falls back to
+`Account 1`, `Account 2`, etc.
 
-## Deploy on Vercel
+## Architecture
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `lib/takeout.ts` reads each zip in memory (JSZip), finds the Saved Places GeoJSON by
+  content (language-independent), and merges + dedupes by Google CID.
+- `lib/categorize.ts` parses city/arrondissement/country and maps Google place types to
+  friendly buckets.
+- `lib/places-api.ts` enriches each place via `places:searchText`, resolving by name plus
+  coordinates. The key stays server-side.
+- `app/api/process/route.ts` is the upload endpoint that ties these together.
+- `app/page.tsx` holds the shared filter state; `MapView` (Leaflet) and `PlacesPanel`
+  render from the same filtered set.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Notes
+
+- Enrichment uses the server's API key for every upload, so the deployer pays for all
+  users' lookups. For a public deployment, add per-user keys, rate limiting, or a results
+  cache before opening it up.
+- Place category is not present in Takeout, it is inferred. "Other" (hotels, schools,
+  airports) and "Uncategorized" are expected for non-food saved places.
