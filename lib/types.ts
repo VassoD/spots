@@ -25,15 +25,20 @@ export interface Place {
   url: string;
   savedDate: string;
   accounts: string[];
+  visited: boolean;
+  seenCount: number;
+  lastSeen: string | null;
 }
 
 export interface ProcessResult {
   places: Place[];
   accounts: string[];
   enriched: boolean;
+  hasActivity: boolean;
   stats: {
     total: number;
     cities: number;
+    visited: number;
     byCategory: Record<string, number>;
   };
 }

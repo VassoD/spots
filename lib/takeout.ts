@@ -1,5 +1,6 @@
 import JSZip from "jszip";
 import { cleanAddress, extractCid, parseCity, guessCategory } from "./categorize";
+import { isActivityZip, parseActivity, mergeActivity, type ActivityHit } from "./activity";
 import type { Place, RawPlace } from "./types";
 
 // A Takeout "Saved Places" file is a GeoJSON FeatureCollection whose features
@@ -86,6 +87,7 @@ function toRawPlace(feat: GeoFeature, account: string): RawPlace | null {
 export interface ParsedUpload {
   places: Place[];
   accounts: string[];
+  hasActivity: boolean;
 }
 
 export async function parseTakeoutZips(
@@ -93,12 +95,22 @@ export async function parseTakeoutZips(
 ): Promise<ParsedUpload> {
   const byKey = new Map<string, Place>();
   const accounts: string[] = [];
+  const activity = new Map<string, ActivityHit>();
+  let hasActivity = false;
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
+    const zip = await JSZip.loadAsync(file.buffer);
+
+    // A My Activity export carries visit history, not saved places.
+    if (isActivityZip(zip)) {
+      hasActivity = true;
+      mergeActivity(activity, await parseActivity(zip));
+      continue;
+    }
+
     const account = accountNameFromFile(file.name, i);
     if (!accounts.includes(account)) accounts.push(account);
-    const zip = await JSZip.loadAsync(file.buffer);
     const features = await extractSavedFeatures(zip);
 
     for (const feat of features) {
@@ -127,9 +139,22 @@ export async function parseTakeoutZips(
         url: raw.url,
         savedDate: raw.savedDate,
         accounts: [account],
+        visited: false,
+        seenCount: 0,
+        lastSeen: null,
       });
     }
   }
 
-  return { places: [...byKey.values()], accounts };
+  // Annotate saved places that show up in Maps activity (matched by CID).
+  for (const place of byKey.values()) {
+    const hit = activity.get(place.id);
+    if (hit) {
+      place.visited = true;
+      place.seenCount = hit.count;
+      place.lastSeen = hit.lastSeen;
+    }
+  }
+
+  return { places: [...byKey.values()], accounts, hasActivity };
 }

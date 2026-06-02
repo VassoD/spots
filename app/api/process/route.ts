@@ -29,7 +29,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     const files = await Promise.all(
       zips.map(async (f) => ({ name: f.name, buffer: await f.arrayBuffer() })),
     );
-    const { places, accounts } = await parseTakeoutZips(files);
+    const { places, accounts, hasActivity } = await parseTakeoutZips(files);
 
     const apiKey = process.env.GOOGLE_MAPS_API_KEY?.trim();
     let enriched = false;
@@ -52,16 +52,19 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     const byCategory: Record<string, number> = {};
     const cities = new Set<string>();
+    let visited = 0;
     for (const p of places) {
       byCategory[p.category] = (byCategory[p.category] ?? 0) + 1;
       cities.add(p.city);
+      if (p.visited) visited += 1;
     }
 
     const result: ProcessResult = {
       places,
       accounts,
       enriched,
-      stats: { total: places.length, cities: cities.size, byCategory },
+      hasActivity,
+      stats: { total: places.length, cities: cities.size, visited, byCategory },
     };
     return NextResponse.json(result);
   } catch (err) {

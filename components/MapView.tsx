@@ -12,10 +12,13 @@ interface MapViewProps {
   onSelect: (id: string) => void;
 }
 
-function pinIcon(color: string, active: boolean): L.DivIcon {
+function pinIcon(color: string, active: boolean, visited: boolean): L.DivIcon {
+  // Visited places are solid; wishlist places are hollow (paper fill, colored edge).
+  const fill = visited ? color : "var(--paper)";
+  const border = visited ? "var(--paper)" : color;
   return L.divIcon({
     className: "",
-    html: `<div class="atlas-pin-wrap ${active ? "atlas-pin-active" : ""}"><div class="atlas-pin" style="background:${color}"></div></div>`,
+    html: `<div class="atlas-pin-wrap ${active ? "atlas-pin-active" : ""}"><div class="atlas-pin" style="background:${fill};border-color:${border}"></div></div>`,
     iconSize: [16, 16],
     iconAnchor: [8, 16],
     popupAnchor: [0, -16],
@@ -72,7 +75,7 @@ export default function MapView({ places, selectedId, onSelect }: MapViewProps):
           <Marker
             key={p.id}
             position={[p.lat as number, p.lon as number]}
-            icon={pinIcon(color, p.id === selectedId)}
+            icon={pinIcon(color, p.id === selectedId, p.visited)}
             eventHandlers={{ click: () => onSelect(p.id) }}
           >
             <Popup>
@@ -81,6 +84,7 @@ export default function MapView({ places, selectedId, onSelect }: MapViewProps):
               <span className="text-xs text-[var(--ink-soft)]">
                 {p.category}
                 {p.rating ? ` · ★ ${p.rating}` : ""}
+                {p.visited ? ` · ✓ seen${p.lastSeen ? ` ${p.lastSeen}` : ""}` : ""}
               </span>
               <br />
               <span className="text-xs text-[var(--ink-faint)]">{p.address}</span>
